@@ -1,3 +1,4 @@
+# https://tech.davis-hansson.com/p/make/
 SHELL := bash
 .ONESHELL:
 .SHELLFLAGS := -eu -o pipefail -c
@@ -10,6 +11,8 @@ ifeq ($(origin .RECIPEPREFIX), undefined)
 endif
 .RECIPEPREFIX = >
 
+# https://docs.docker.com/docker-for-mac/networking/
+# host.docker.internal resolves to the internal IP address used by the host
 create:
 > k3d cluster create --kubeconfig-update-default --kubeconfig-switch-context
 > sed -i 's/0.0.0.0/host.docker.internal/g' $(HOME)/.kube/config
