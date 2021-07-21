@@ -14,3 +14,7 @@ create:
 > k3d cluster create --kubeconfig-update-default --kubeconfig-switch-context
 > sed -i 's/0.0.0.0/host.docker.internal/g' $(HOME)/.kube/config
 .PHONY: create
+
+delete:
+> k3d cluster delete k3s-default
+.PHONY: delete
