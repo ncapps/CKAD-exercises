@@ -309,6 +309,18 @@ kubernetes.io > Documentation > Tasks > Configure Pods and Containers > [Assign 
 kubectl run nginx --image=nginx --restart=Never --requests='cpu=100m,memory=256Mi' --limits='cpu=200m,memory=512Mi'
 ```
 
+Note: Use of `--requests` and `--limits` flags in the imperative `run` command is deprecated as of 1.21 K8s version and will be removed in the future. Instead, use `kubectl set resources` command in combination with `kubectl run --dry-run=client -o yaml ...` as shown below.
+
+Alternative using `set resources` in combination with imperative `run` command:
+
+```bash
+kubectl run nginx --image=nginx --restart=Never --dry-run=client -o yaml | kubectl set resources -f - --requests=cpu=100m,memory=256Mi --limits=cpu=200m,memory=512Mi --local -o yaml > nginx-pod.yml
+```
+
+```bash
+kubectl create -f nginx-pod.yml
+```
+
 </p>
 </details>
 
@@ -355,13 +367,19 @@ kubectl create secret generic mysecret2 --from-file=username
 
 ```bash
 kubectl get secret mysecret2 -o yaml
-echo YWRtaW4K | base64 -d # on MAC it is -D, which decodes the value and shows 'admin'
+echo -n YWRtaW4= | base64 -d # on MAC it is -D, which decodes the value and shows 'admin'
 ```
 
-Alternative:
+Alternative using `--jsonpath`:
 
 ```bash
-kubectl get secret mysecret2 -o jsonpath='{.data.username}{"\n"}' | base64 -d  # on MAC it is -D
+kubectl get secret mysecret2 -o jsonpath='{.data.username}' | base64 -d  # on MAC it is -D
+```
+
+Alternative using `--template`:
+
+```bash
+kubectl get secret mysecret2 --template '{{.data.username}}' | base64 -d  # on MAC it is -D
 ```
 
 </p>
@@ -536,6 +554,28 @@ metadata:
   name: nginx
 spec:
   serviceAccountName: myuser # we use pod.spec.serviceAccountName
+  containers:
+  - image: nginx
+    imagePullPolicy: IfNotPresent
+    name: nginx
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+status: {}
+```
+
+or
+
+```YAML
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx
+  name: nginx
+spec:
+  serviceAccount: myuser # we use pod.spec.serviceAccount
   containers:
   - image: nginx
     imagePullPolicy: IfNotPresent
