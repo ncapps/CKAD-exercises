@@ -18,6 +18,6 @@ create:
 > sed -i 's/0.0.0.0/host.docker.internal/g' $(HOME)/.kube/config
 .PHONY: create
 
-delete:
+clean:
 > k3d cluster delete k3s-default
 .PHONY: delete
