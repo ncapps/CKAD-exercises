@@ -68,3 +68,42 @@ status: {}
 kubectl get pod -o wide
 kubectl run busybux --image=busybox --rm --restart=Never -it -- sh -c 'wget -O- 10.42.0.13:80'
 ```
+
+### Pod Design
+```sh
+# Create multiple pods
+for i in `seq 1 3`; do kubectl run nginx$i --image=nginx -l app=v1 ; done
+# Remove a label
+kubectl label po nginx{1..3} app-
+
+# Create a pod that gets scheduled based on node label
+# Add label to node
+kubectl label node k3d-k3s-default-server-0 accelerator=nvidia-tesla-p100
+# Show that the label was created
+kubectl get node -L accelerator
+
+# You can easily find out where in the YAML it should be placed by:
+kubectl explain po.spec
+# Add Node selector property
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx
+  name: nginx
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+  nodeSelector:
+    accelerator: nvidia-tesla-p100
+status: {}
+```
+### Labels and Annotations
+https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+
+You can use either labels or annotations to attach metadata to Kubernetes objects. Labels can be used to select objects and to find collections of objects that satisfy certain conditions. In contrast, annotations are not used to identify and select objects. The metadata in an annotation can be small or large, structured or unstructured, and can include characters not permitted by labels.
