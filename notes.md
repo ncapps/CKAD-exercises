@@ -7,6 +7,8 @@ make create
 # Cleanup and delete the cluster
 make delete
 ```
+### CKAD Curriculum
+https://github.com/cncf/curriculum
 
 ### Exam init
 1. Enable Kubectl autocomplete (reference/kubectl/cheatsheet)
