@@ -38,4 +38,4 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list \
     && apt-get update \
-    && apt-get -y install kubectl
+    && apt-get -y install kubectl vim
