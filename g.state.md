@@ -58,6 +58,15 @@ spec:
   - name: myvolume #
     emptyDir: {} #
 ```
+In case you forget to add ```bash -- /bin/sh -c 'sleep 3600'``` in template pod create command, you can include command field in config file
+
+```YAML
+spec:
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh", "-c", "sleep 3600"]
+```
 
 Connect to the second container:
 
@@ -256,7 +265,7 @@ There are lots of different types per cloud provider [(see here)](https://kubern
 
 ```bash
 kubectl run busybox --image=busybox --restart=Never -- sleep 3600
-kubectl cp busybox:etc/passwd ./passwd # kubectl cp command
+kubectl cp busybox:/etc/passwd ./passwd # kubectl cp command
 # previous command might report an error, feel free to ignore it since copy command works
 cat passwd
 ```

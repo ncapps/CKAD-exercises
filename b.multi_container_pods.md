@@ -50,7 +50,7 @@ kubectl delete po busybox
 </p>
 </details>
 
-### Create pod with nginx container exposed at port 80. Add a busybox init container which downloads a page using "wget -O /work-dir/index.html http://neverssl.com/online". Make a volume of type emptyDir and mount it in both containers. For the nginx container, mount it on "/usr/share/nginx/html" and for the initcontainer, mount it on "/work-dir". When done, get the IP of the created pod and create a busybox pod and run "wget -O- IP"
+### Create a pod with an nginx container exposed on port 80. Add a busybox init container which downloads a page using "wget -O /work-dir/index.html http://neverssl.com/online". Make a volume of type emptyDir and mount it in both containers. For the nginx container, mount it on "/usr/share/nginx/html" and for the initcontainer, mount it on "/work-dir". When done, get the IP of the created pod and create a busybox pod and run "wget -O- IP"
 
 <details><summary>show</summary>
 <p>
@@ -58,7 +58,7 @@ kubectl delete po busybox
 Easiest way to do it is create a pod with a single container and save its definition in a YAML file:
 
 ```bash
-kubectl run web --image=nginx --restart=Never --port=80 --dry-run=client -o yaml > pod-init.yaml
+kubectl run box --image=nginx --restart=Never --port=80 --dry-run=client -o yaml > pod-init.yaml
 ```
 
 Copy/paste the container related values, so your final YAML should contain the volume and the initContainer:
@@ -67,14 +67,14 @@ Volume:
 
 ```YAML
 containers:
-  - image: nginx
+- image: nginx
 ...
-    volumeMounts:
-    - name: vol
-      mountPath: /usr/share/nginx/html
-  volumes:
+  volumeMounts:
   - name: vol
-    emptyDir: {}
+    mountPath: /usr/share/nginx/html
+volumes:
+- name: vol
+  emptyDir: {}
 ```
 
 initContainer:
@@ -104,27 +104,27 @@ metadata:
     run: box
   name: box
 spec:
-  initContainers: #
-  - args: #
-    - /bin/sh #
-    - -c #
-    - wget -O /work-dir/index.html http://neverssl.com/online #
-    image: busybox #
-    name: box #
-    volumeMounts: #
-    - name: vol #
-      mountPath: /work-dir #
+  initContainers: 
+  - args: 
+    - /bin/sh 
+    - -c 
+    - wget -O /work-dir/index.html http://neverssl.com/online 
+    image: busybox 
+    name: box 
+    volumeMounts: 
+    - name: vol 
+      mountPath: /work-dir 
   containers:
   - image: nginx
     name: nginx
     ports:
     - containerPort: 80
-    volumeMounts: #
-    - name: vol #
-      mountPath: /usr/share/nginx/html #
-  volumes: #
-  - name: vol #
-    emptyDir: {} #
+    volumeMounts: 
+    - name: vol 
+      mountPath: /usr/share/nginx/html 
+  volumes: 
+  - name: vol 
+    emptyDir: {} 
 ```
 
 ```bash

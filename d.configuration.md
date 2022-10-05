@@ -1,6 +1,16 @@
 ![](https://gaforgithub.azurewebsites.net/api?repo=CKAD-exercises/configuration&empty)
 # Configuration (18%)
 
+[ConfigMaps](#configmaps)
+
+[SecurityContext](#securitycontext)
+
+[Requests and Limits](#requests-and-limits)
+
+[Secrets](#secrets)
+
+[Service Accounts](#serviceaccounts)
+
 ## ConfigMaps
 
 kubernetes.io > Documentation > Tasks > Configure Pods and Containers > [Configure a Pod to Use a ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)
@@ -261,7 +271,7 @@ status: {}
 </details>
 
 
-### Create the YAML for an nginx pod that has the capabilities "NET_ADMIN", "SYS_TIME" added on its single container
+### Create the YAML for an nginx pod that has the capabilities "NET_ADMIN", "SYS_TIME" added to its single container
 
 <details><summary>show</summary>
 <p>
@@ -306,20 +316,33 @@ kubernetes.io > Documentation > Tasks > Configure Pods and Containers > [Assign 
 <p>
 
 ```bash
-kubectl run nginx --image=nginx --restart=Never --requests='cpu=100m,memory=256Mi' --limits='cpu=200m,memory=512Mi'
+kubectl run nginx --image=nginx --dry-run=client -o yaml > pod.yaml
+vi pod.yaml
 ```
 
-Note: Use of `--requests` and `--limits` flags in the imperative `run` command is deprecated as of 1.21 K8s version and will be removed in the future. Instead, use `kubectl set resources` command in combination with `kubectl run --dry-run=client -o yaml ...` as shown below.
-
-Alternative using `set resources` in combination with imperative `run` command:
-
-```bash
-kubectl run nginx --image=nginx --restart=Never --dry-run=client -o yaml | kubectl set resources -f - --requests=cpu=100m,memory=256Mi --limits=cpu=200m,memory=512Mi --local -o yaml > nginx-pod.yml
-```
-
-```bash
-kubectl create -f nginx-pod.yml
-```
+```YAML
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx
+  name: nginx
+spec:
+  containers:
+  - image: nginx
+    name: nginx
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: 100m
+      limits:    
+        memory: "512Mi"
+        cpu: 200m
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+``` 
 
 </p>
 </details>
@@ -382,6 +405,12 @@ Alternative using `--template`:
 kubectl get secret mysecret2 --template '{{.data.username}}' | base64 -d  # on MAC it is -D
 ```
 
+Alternative using `jq`:
+
+```bash
+kubectl get secret mysecret2 -o json | jq -r .data.username | base64 -d  # on MAC it is -D
+```
+
 </p>
 </details>
 
@@ -423,7 +452,7 @@ status: {}
 
 ```bash
 kubectl create -f pod.yaml
-kubectl exec -it nginx /bin/bash
+kubectl exec -it nginx -- /bin/bash
 ls /etc/foo  # shows username
 cat /etc/foo/username # shows admin
 ```
@@ -531,13 +560,6 @@ kubectl create -f sa.yaml
 
 <details><summary>show</summary>
 <p>
-
-```bash
-kubectl run nginx --image=nginx --restart=Never --serviceaccount=myuser -o yaml --dry-run=client > pod.yaml
-kubectl apply -f pod.yaml
-```
-
-or you can add manually:
 
 ```bash
 kubectl run nginx --image=nginx --restart=Never -o yaml --dry-run=client > pod.yaml

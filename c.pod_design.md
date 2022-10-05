@@ -1,8 +1,16 @@
 ![](https://gaforgithub.azurewebsites.net/api?repo=CKAD-exercises/pod_design&empty)
 # Pod design (20%)
 
+[Labels And Annotations](#labels-and-annotations)
+
+[Deployments](#deployments)
+
+[Jobs](#jobs)
+
+[Cron Jobs](#cron-jobs)
+
 ## Labels and annotations
-kubernetes.io > Documentation > Concepts > Overview > [Labels and Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors)
+kubernetes.io > Documentation > Concepts > Overview > Working with Kubernetes Objects > [Labels and Selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors)
 
 ### Create 3 pods with names nginx1,nginx2,nginx3. All of them should have the label app=v1
 
@@ -71,6 +79,29 @@ kubectl get po -l 'app in (v2)'
 kubectl get po --selector=app=v2
 ```
 
+</p>
+</details>
+
+### Add a new label tier=web to all pods having 'app=v2' or 'app=v1' labels
+
+<details><summary>show</summary>
+<p>
+
+```bash
+kubectl label po -l "app in(v1,v2)" tier=web
+```
+</p>
+</details>
+
+
+### Add an annotation 'owner: marketing' to all pods having 'app=v2' label
+
+<details><summary>show</summary>
+<p>
+
+```bash
+kubectl annotate po -l "app=v2" owner=marketing
+```
 </p>
 </details>
 
@@ -171,6 +202,10 @@ kubectl annotate po nginx{1..3} description='my description'
 <p>
 
 ```bash
+kubectl annotate pod nginx1 --list
+
+# or
+
 kubectl describe po nginx1 | grep -i 'annotations'
 
 # or
@@ -209,7 +244,7 @@ kubectl delete po nginx{1..3}
 
 ## Deployments
 
-kubernetes.io > Documentation > Concepts > Workloads > Controllers > [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)
+kubernetes.io > Documentation > Concepts > Workloads > Workload Resources > [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)
 
 ### Create a deployment with image nginx:1.18.0, called nginx, having 2 replicas, defining port 80 as the port that this container exposes (don't create a service for this deployment)
 
@@ -232,7 +267,7 @@ or, do something like:
 kubectl create deployment nginx  --image=nginx:1.18.0  --dry-run=client -o yaml | sed 's/replicas: 1/replicas: 2/g'  | sed 's/image: nginx:1.18.0/image: nginx:1.18.0\n        ports:\n        - containerPort: 80/g' | kubectl apply -f -
 ```
 
-or, 
+or,
 ```bash
 kubectl create deploy nginx --image=nginx:1.18.0 --replicas=2 --port=80
 ```
@@ -485,15 +520,157 @@ kubectl delete deploy/nginx hpa/nginx
 </p>
 </details>
 
+### Implement canary deployment by running two instances of nginx marked as version=v1 and version=v2 so that the load is balanced at 75%-25% ratio
+
+<details><summary>show</summary>
+<p>
+
+Deploy 3 replicas of v1:
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-v1
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: v1
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: workdir
+          mountPath: /usr/share/nginx/html
+      initContainers:
+      - name: install
+        image: busybox:1.28
+        command:
+        - /bin/sh
+        - -c
+        - "echo version-1 > /work-dir/index.html"
+        volumeMounts:
+        - name: workdir
+          mountPath: "/work-dir"
+      volumes:
+      - name: workdir
+        emptyDir: {}
+```
+
+Create the service:
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-svc
+  labels:
+    app: my-app
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  selector:
+    app: my-app
+```
+
+Test if the deployment was successful:
+```bash
+curl $(kubectl get svc my-app-svc -o jsonpath="{.spec.clusterIP}")
+version-1
+```
+
+Deploy 1 replica of v2:
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-v2
+  labels:
+    app: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: v2
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: workdir
+          mountPath: /usr/share/nginx/html
+      initContainers:
+      - name: install
+        image: busybox:1.28
+        command:
+        - /bin/sh
+        - -c
+        - "echo version-2 > /work-dir/index.html"
+        volumeMounts:
+        - name: workdir
+          mountPath: "/work-dir"
+      volumes:
+      - name: workdir
+        emptyDir: {}
+```
+
+Observe that calling the ip exposed by the service the requests are load balanced across the two versions:
+```bash
+while sleep 0.1; do curl $(kubectl get svc my-app-svc -o jsonpath="{.spec.clusterIP}"); done
+version-1
+version-1
+version-1
+version-2
+version-2
+version-1
+```
+
+If the v2 is stable, scale it up to 4 replicas and shoutdown the v1:
+```
+kubectl scale --replicas=4 deploy my-app-v2
+kubectl delete deploy my-app-v1
+while sleep 0.1; do curl $(kubectl get svc my-app-svc -o jsonpath="{.spec.clusterIP}"); done
+version-2
+version-2
+version-2
+version-2
+version-2
+version-2
+```
+
+</p>
+</details>
+
 ## Jobs
 
-### Create a job named pi with image perl that runs the command with arguments "perl -Mbignum=bpi -wle 'print bpi(2000)'"
+### Create a job named pi with image perl:5.34 that runs the command with arguments "perl -Mbignum=bpi -wle 'print bpi(2000)'"
 
 <details><summary>show</summary>
 <p>
 
 ```bash
-kubectl create job pi  --image=perl -- perl -Mbignum=bpi -wle 'print bpi(2000)'
+kubectl create job pi  --image=perl:5.34 -- perl -Mbignum=bpi -wle 'print bpi(2000)'
 ```
 
 </p>
@@ -510,17 +687,17 @@ kubectl get po # get the pod name
 kubectl logs pi-**** # get the pi numbers
 kubectl delete job pi
 ```
-OR 
+OR
 
 ```bash
 kubectl get jobs -w # wait till 'SUCCESSFUL' is 1 (will take some time, perl image might be big)
 kubectl logs job/pi
 kubectl delete job pi
 ```
-OR 
+OR
 
 ```bash
-kubectl wait --for=condition=complete --timeout=300 job pi
+kubectl wait --for=condition=complete --timeout=300s job pi
 kubectl logs job/pi
 kubectl delete job pi
 ```
@@ -583,12 +760,12 @@ kubectl delete job busybox
 
 <details><summary>show</summary>
 <p>
-  
+
 ```bash
 kubectl create job busybox --image=busybox --dry-run=client -o yaml -- /bin/sh -c 'while true; do echo hello; sleep 10;done' > job.yaml
 vi job.yaml
 ```
-  
+
 Add job.spec.activeDeadlineSeconds=30
 
 ```bash
@@ -745,6 +922,11 @@ kubectl create cronjob busybox --image=busybox --schedule="*/1 * * * *" -- /bin/
 </details>
 
 ### See its logs and delete it
+```bash
+kubectl get po   # copy the container just created
+kubectl logs <container> # you will see the date and message 
+kubectl delete cj busybox --force #cj stands for cronjob and --force to delete immediately 
+```
 
 <details><summary>show</summary>
 <p>
@@ -773,7 +955,7 @@ vi time-limited-job.yaml
 Add cronjob.spec.startingDeadlineSeconds=17
 
 ```bash
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   creationTimestamp: null
@@ -817,7 +999,7 @@ vi time-limited-job.yaml
 Add cronjob.spec.jobTemplate.spec.activeDeadlineSeconds=12
 
 ```bash
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   creationTimestamp: null

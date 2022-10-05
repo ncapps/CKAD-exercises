@@ -136,11 +136,13 @@ kubectl label deployment foo --overwrite app=foo
 ```bash
 kubectl get pods -l app=foo -o wide # 'wide' will show pod IPs
 kubectl run busybox --image=busybox --restart=Never -it --rm -- sh
-wget -O- POD_IP:8080 # do not try with pod name, will not work
-# try hitting all IPs to confirm that hostname is different
+wget -O- <POD_IP>:8080 # do not try with pod name, will not work
+# try hitting all IPs generated after running 1st command to confirm that hostname is different
 exit
 # or
 kubectl get po -o wide -l app=foo | awk '{print $6}' | grep -v IP | xargs -L1 -I '{}' kubectl run --rm -ti tmp --restart=Never --image=busybox -- wget -O- http://\{\}:8080
+# or
+kubectl get po -l app=foo -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}' | xargs -L1 -I '{}' kubectl run --rm -ti tmp --restart=Never --image=busybox -- wget -O- http://\{\}:8080
 ```
 
 </p>
@@ -155,7 +157,7 @@ kubectl get po -o wide -l app=foo | awk '{print $6}' | grep -v IP | xargs -L1 -I
 ```bash
 kubectl expose deploy foo --port=6262 --target-port=8080
 kubectl get service foo # you will see ClusterIP as well as port 6262
-kubectl get endpoints foo # you will see the IPs of the three replica nodes, listening on port 8080
+kubectl get endpoints foo # you will see the IPs of the three replica pods, listening on port 8080
 ```
 
 </p>
@@ -170,7 +172,7 @@ kubectl get endpoints foo # you will see the IPs of the three replica nodes, lis
 kubectl get svc # get the foo service ClusterIP
 kubectl run busybox --image=busybox -it --rm --restart=Never -- sh
 wget -O- foo:6262 # DNS works! run it many times, you'll see different pods responding
-wget -O- SERVICE_CLUSTER_IP:6262 # ClusterIP works as well
+wget -O- <SERVICE_CLUSTER_IP>:6262 # ClusterIP works as well
 # you can also kubectl logs on deployment pods to see the container logs
 kubectl delete svc foo
 kubectl delete deploy foo
@@ -183,6 +185,8 @@ kubectl delete deploy foo
 
 kubernetes.io > Documentation > Concepts > Services, Load Balancing, and Networking > [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 
+> Note that network policies may not be enforced by default, depending on your k8s implementation. E.g. Azure AKS by default won't have policy enforcement, the cluster must be created with an explicit support for `netpol` https://docs.microsoft.com/en-us/azure/aks/use-network-policies#overview-of-network-policy  
+  
 <details><summary>show</summary>
 <p>
 
